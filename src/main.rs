@@ -10,7 +10,6 @@ use nom::error::VerboseError;
 
 use crate::parser::parse::packet;
 use crate::parser::renderer::{Handler, Screen};
-use threadpool::ThreadPool;
 
 #[cfg(not(target_env = "msvc"))]
 use jemallocator::Jemalloc;
@@ -50,7 +49,6 @@ fn do_parse(i: &[u8]) -> String {
 
     let mut rest = i;
 
-    let pool = ThreadPool::new(num_cpus::get());
     while !rest.is_empty() {
         match packet::<VerboseError<&[u8]>>(&rest) {
             Ok((remains, packet)) => {
@@ -58,10 +56,10 @@ fn do_parse(i: &[u8]) -> String {
                 match handler.handle(packet) {
                     Ok(image) => match image {
                         Some(img) => {
-                            pool.execute(move || match display_to_text(frame, &img) {
+                            match display_to_text(frame, &img) {
                                 Ok(()) => {}
                                 Err(error) => eprintln!("error {:#?}\n", error),
-                            });
+                            };
                             frame = frame + 1;
                         }
                         None => {}
@@ -78,7 +76,6 @@ fn do_parse(i: &[u8]) -> String {
             }
         }
     }
-    pool.join();
     return String::new();
 }
 
