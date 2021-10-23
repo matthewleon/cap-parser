@@ -30,8 +30,10 @@ fn timeit<Ret, F: FnOnce() -> Ret>(f: F) -> Ret {
 }
 
 fn main() -> std::io::Result<()> {
+    let path = std::env::args().nth(1).expect("no path given");
+
     timeit(|| {
-        let mut f = File::open("subs.sup")?;
+        let mut f = File::open(path)?;
         let mut buffer = Vec::with_capacity(f.metadata()?.len() as usize);
         f.read_to_end(&mut buffer)?;
 
