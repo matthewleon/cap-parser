@@ -12,6 +12,7 @@ use self::nom::{
     sequence::{preceded, tuple},
     IResult, InputTake,
 };
+use self::nom::error::ContextError;
 
 #[inline]
 fn timestamp<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], Timestamp, E> {
@@ -22,11 +23,11 @@ fn timestamp<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], Time
 fn bool_byte<'a, E: ParseError<&'a [u8]>>(
     f_val: u8,
     t_val: u8,
-) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], bool, E> {
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], bool, E> {
     alt((value(false, tag([f_val])), value(true, tag([t_val]))))
 }
 
-fn segment<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], Segment, E> {
+fn segment<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], Segment, E> {
     let (rest, (seg_type, size)) = tuple((be_u8, be_u16))(i)?;
 
     match seg_type {
@@ -39,9 +40,9 @@ fn segment<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], Segmen
     }
 }
 
-fn seg_pds<'a, E: ParseError<&'a [u8]>>(
+fn seg_pds<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
     size: u16,
-) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Segment, E> {
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Segment, E> {
     map(
         tuple((
             context("id", be_u8),
@@ -58,7 +59,7 @@ fn seg_pds<'a, E: ParseError<&'a [u8]>>(
     )
 }
 
-fn seg_pds_entry<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], PaletteEntry, E> {
+fn seg_pds_entry<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], PaletteEntry, E> {
     map(
         tuple((
             context("id", be_u8),
@@ -74,7 +75,7 @@ fn seg_pds_entry<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], 
     )(i)
 }
 
-fn seg_ods<'a, E: ParseError<&'a [u8]>>(
+fn seg_ods<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
     _size: u16,
 ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Segment, E> {
     move |i: &'a [u8]| {
@@ -158,9 +159,9 @@ fn rle_entry<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], RLEE
     ))
 }
 
-fn seg_pcs<'a, E: ParseError<&'a [u8]>>(
+fn seg_pcs<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
     _: u16,
-) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Segment, E> {
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Segment, E> {
     map(
         tuple((
             context("width", be_u16),
@@ -200,7 +201,7 @@ fn seg_pcs_cs<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], Com
     ))(i)
 }
 
-fn composition_object<'a, E: ParseError<&'a [u8]>>(
+fn composition_object<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
     i: &'a [u8],
 ) -> IResult<&'a [u8], CompositionObject, E> {
     let (i1, (oid, wid, is_crop, x, y)) = tuple((
@@ -242,9 +243,9 @@ fn composition_object<'a, E: ParseError<&'a [u8]>>(
     ))
 }
 
-fn seg_wds<'a, E: ParseError<&'a [u8]>>(
+fn seg_wds<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
     size: u16,
-) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Segment, E> {
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Segment, E> {
     map(
         preceded(
             context("num_windows", be_u8),
@@ -257,7 +258,7 @@ fn seg_wds<'a, E: ParseError<&'a [u8]>>(
     )
 }
 
-fn seg_wds_win<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], WindowDefinition, E> {
+fn seg_wds_win<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], WindowDefinition, E> {
     map(
         tuple((
             context("id", be_u8),
@@ -276,7 +277,7 @@ fn seg_wds_win<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], Wi
     )(i)
 }
 
-pub fn packet<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], Packet, E> {
+pub fn packet<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], Packet, E> {
     context(
         "packet",
         map(
